@@ -1,0 +1,121 @@
+version: "3.9"
+services:
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq-container
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - my-network
+    restart: always
+
+  mysqlservice:
+    image: mysql:5.7
+    ports:
+      - 3307:3307
+    container_name: mysql-container
+    networks:
+      - my-network
+#    network_mode: host
+#    hostname: localhost
+    environment:
+      MYSQL_DATABASE: authenticate_db
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USERNAME: user
+      MYSQL_PASSWORD: root
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+
+  mongodbservice:
+    image: mongo:latest
+    container_name: mongo-container
+    networks:
+      - my-network
+#    network_mode: host
+#    hostname: localhost
+    ports:
+      - 27017:27017
+
+  userauthenticationservice:
+    container_name: user-authentication-service
+    build: UserAuthenticationService/
+    networks:
+      - my-network
+#    hostname: localhost
+#    network_mode: host
+    ports:
+      - 8085:8085
+    depends_on:
+      - mysqlservice
+      - eurekaServer
+      - cloudapiservice
+    restart: always
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq-container
+
+  usertrackservice:
+    container_name: user-track-service
+    build: UserTrackService/
+    networks:
+      - my-network
+#    hostname: localhost
+#    network_mode: host
+    ports:
+      - 8083:8083
+    depends_on:
+      - mongodbservice
+      - eurekaServer
+      - cloudapiservice
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq-container
+    restart: always
+
+
+  usermusicservice:
+    container_name: user-music-service
+    build: MusicRecommenderService/
+    networks:
+      - my-network
+      #    hostname: localhost
+      #    network_mode: host
+    ports:
+      - 8082:8082
+    depends_on:
+        - mongodbservice
+        - eurekaServer
+        - cloudapiservice
+    restart: always
+#    environment:
+#      SPRING_RABBITMQ_HOST: rabbitmq-container
+
+
+  cloudapiservice:
+    container_name: spring-cloud-api-gateway
+    image: cloud-api-service
+    build: SpringCloudAPIGateway/
+    restart: always
+    networks:
+      - my-network
+#     network_mode: host
+#    hostname: localhost
+    ports:
+      - 9000:9000
+
+
+  eurekaServer:
+    container_name: eureka-service
+    image: eureka-service
+    build: EurekaServer/
+    restart: always
+    networks:
+      - my-network
+#    network_mode: host
+#    hostname: localhost
+    ports:
+      - 8761:8761
+
+
+
+networks:
+  my-network:
+    driver: bridge
